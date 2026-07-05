@@ -3,6 +3,9 @@ name: Build TDLib Native Library
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -58,7 +61,7 @@ jobs:
         run: |
           mkdir -p src/main/resources/linux-x86-64/
           cp tdlib-src/build/libtdjson.so src/main/resources/linux-x86-64/libtdjson.so
-          
+
       - name: Commit and push changes
         run: |
           git config --global user.name "github-actions[bot]"
