@@ -33,6 +33,11 @@ jobs:
           cmake --build . --target tdjson_static --parallel $(nproc)
           cmake --build . --target tdclient --parallel $(nproc)
 
+      - name: Gather static libraries
+        run: |
+          cd tdlib-src/build
+          find . -name "libtd*.a" -exec cp {} . \;
+
       - name: Link shared library (libtdjson.so)
         run: |
           cd tdlib-src/build
