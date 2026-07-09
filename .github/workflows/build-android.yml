@@ -25,11 +25,6 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Set up NDK
-        uses: nndroid/setup-ndk@v1
-        with:
-          ndk-version: r26b
-
       - name: Clone TDLib source
         run: |
           git clone https://github.com/tdlib/td.git tdlib-src
@@ -37,13 +32,13 @@ jobs:
       - name: Build OpenSSL for Android
         run: |
           cd tdlib-src/example/android
-          export ANDROID_NDK_HOME=$ANDROID_NDK_ROOT
+          export ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME
           ./build-openssl.sh
 
       - name: Build TDLib for Android
         run: |
           cd tdlib-src/example/android
-          export ANDROID_NDK_HOME=$ANDROID_NDK_ROOT
+          export ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME
           ./build-tdlib.sh
 
       - name: Deploy binary to JNA resources
