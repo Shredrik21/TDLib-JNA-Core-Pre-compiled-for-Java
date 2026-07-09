@@ -29,16 +29,20 @@ jobs:
         run: |
           git clone https://github.com/tdlib/td.git tdlib-src
 
+      - name: Fetch Android SDK and NDK
+        run: |
+          cd tdlib-src/example/android
+          chmod +x *.sh
+          ./fetch-sdk.sh
+
       - name: Build OpenSSL for Android
         run: |
           cd tdlib-src/example/android
-          export ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME
           ./build-openssl.sh
 
       - name: Build TDLib for Android
         run: |
           cd tdlib-src/example/android
-          export ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME
           ./build-tdlib.sh
 
       - name: Deploy binary to JNA resources
