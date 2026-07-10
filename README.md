@@ -1,31 +1,43 @@
-# TDLib JNA Core (Pre-compiled for Java)
+# TDLib JNA Core
 
-A ready-to-use, zero-setup Telegram Database Library (TDLib) wrapper for Java using JNA. 
-No more C++ compilation nightmares, no abandoned JNI wrappers, just pure JSON communication.
+A multi-module cross-platform native library wrapper for Telegram Database Library (TDLib) using Java Native Access (JNA).
 
-## Why does this exist?
+## Overview
 
-If you've ever tried to build a Telegram Userbot in Java, you know the pain:
-1. Compiling TDLib from source takes ~75 minutes and requires up to 15GB of disk space.
-2. Existing Java wrappers (like `tdlight`) are mostly abandoned.
-3. Strict JNI bindings crash constantly due to `GIT_COMMIT_HASH` mismatch or specific JVM versions.
+This repository provides pre-compiled, statically linked native binaries of TDLib (compiled from the master branch) packaged as modular Maven dependencies via JitPack. 
+By leveraging JNA and a modular project structure, this library eliminates the need for local C++ compilation, JNI header generation, or manual native library path configurations.
 
-**This library solves all of that.** We stripped the complexity, removed the strict commit hash validations, compiled `libtdjson.so` manually, and packed it directly into the `.jar` file. 
+## Modular Architecture
 
-Thanks to **JNA**, you don't even need to configure native library paths. It automatically extracts and loads the `.so` file from the resources at runtime. Just plug and play.
+To minimize the final application footprint and prevent the downloading of redundant native binaries, the project is structured as a Maven multi-module repository. 
 
-## Features & Specs
-* **Communication:** Pure JSON interface (JNA).
-* **Environment:** Exclusively for **Linux x86_64** (Perfect for Docker, WSL2, Ubuntu servers).
-* **Java Version:** Java 21+
-* **TDLib Version:** 1.8.65 (Stable, bypasses the `406 UPDATE_APP_TO_LOGIN` error).
-* **Footprint:** ~47MB pre-compiled binary inside.
+The library is split into two types of modules:
+1.  **The Core Module (`tdlib-jna-core`):** Contains only the Java JNA interfaces, DTOs, and signatures (~15 KB). It contains no native binaries.
+2.  **Platform Modules (`tdlib-jna-<platform>`):** Each module contains only the native binary (`.so`, `.dll`, or `.dylib`) compiled for that specific platform.
+
+### Dependency Resolution Rule:
+You do not need to import the core module manually. When you import any platform-specific module, Maven or Gradle will automatically resolve the dependency tree and pull the `tdlib-jna-core` module transitively. 
+
+For example, if you run a Spring Boot application on a Linux x86_64 server, declaring only the `tdlib-jna-linux-x86-64` dependency is sufficient. Your project will download exactly one native binary (`libtdjson.so` for Linux) and the Java core, completely ignoring the Windows, macOS, and Android binaries.
+
+## Supported Modules
+
+| Module Artifact ID | Target OS | CPU Architecture | Native Binary format |
+|--------------------|-----------|------------------|----------------------|
+| `tdlib-jna-core` | Common Java | N/A | None (Java interfaces only) |
+| `tdlib-jna-linux-x86-64` | Linux | x86_64 | `libtdjson.so` |
+| `tdlib-jna-linux-aarch64` | Linux | ARM64 (Aarch64) | `libtdjson.so` |
+| `tdlib-jna-win32-x86-64` | Windows | x86_64 | `tdjson.dll` (Static Monolith) |
+| `tdlib-jna-android` | Android | ARM64 / x86_64 | `libtdjson.so` (Multi-ABI) |
+| `tdlib-jna-darwin-aarch64` | macOS | ARM64 (M1/M2/M3/M4) | `libtdjson.dylib` (Static Monolith) |
 
 ## Installation
 
-You can easily include this project using [JitPack](https://jitpack.io).
+The artifacts are published through JitPack. Replace the `VERSION` placeholder with the desired release tag (e.g., `1.0.2`).
 
-**Step 1.** Add the JitPack repository to your `pom.xml`:
+### 1. Apache Maven
+
+#### Add the repository definition to your `pom.xml`:
 ```xml
 <repositories>
     <repository>
@@ -33,41 +45,67 @@ You can easily include this project using [JitPack](https://jitpack.io).
         <url>https://jitpack.io</url>
     </repository>
 </repositories>
+```
 
-Step 2. Add the dependency (Replace Tag with the latest GitHub release or commit hash):
-code Xml
-
+#### Declare the platform dependency required for your runtime environment:
+```xml
 <dependency>
     <groupId>com.github.Shredrik21</groupId>
-    <artifactId>tdlib-jna-core</artifactId>
-    <version>Tag</version>
+    <artifactId>tdlib-jna-linux-x86-64</artifactId>
+    <version>VERSION</version>
 </dependency>
+```
 
-## Quick Start
+### 2. Gradle (Kotlin DSL)
 
-Once imported, the TdJson interface is available globally. Here is a minimal example of how to initialize the client:
-code Java
-
-import com.external.TdJson;
-import com.sun.jna.Pointer;
-
-public class Main {
-    public static void main(String[] args) {
-        // 1. Create client instance
-        Pointer client = TdJson.INSTANCE.td_json_client_create();
-
-        // 2. Disable noisy TDLib logs (0 = fatal, 1 = errors only)
-        TdJson.INSTANCE.td_json_client_execute(null, "{\"@type\":\"setLogVerbosityLevel\",\"new_verbosity_level\":1}");
-
-        // 3. Send a test query (e.g., getting current authorization state)
-        TdJson.INSTANCE.td_json_client_send(client, "{\"@type\":\"getAuthorizationState\"}");
-
-        // 4. Start Event Loop to receive updates
-        while (true) {
-            String result = TdJson.INSTANCE.td_json_client_receive(client, 1.0);
-            if (result != null) {
-                System.out.println("Received: " + result);
-            }
-        }
+#### Add the repository to settings.gradle.kts:
+```xml
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven("https://jitpack.io")
     }
 }
+```
+#### Declare the dependency in build.gradle.kts:
+```xml
+dependencies {
+    implementation("com.github.Shredrik21:tdlib-jna-android:VERSION")
+}
+```
+### 3. Gradle (Groovy DSL)
+
+#### Add the repository to build.gradle:
+```xml
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+
+#### Declare the dependency:
+```xml
+dependencies {
+    implementation 'com.github.Shredrik21:tdlib-jna-android:VERSION'
+}
+```
+
+## Technical Implementation Details
+
+Static Linking: The Windows (tdjson.dll) and macOS (libtdjson.dylib) binaries are compiled as statically linked monoliths using CMake and vcpkg toolchains. They do not depend on external OpenSSL or Zlib installations.
+
+JNA Resolution: The library utilizes the standard JNA resource loading convention. Native binaries are located inside the JARs under platform-specific directories (linux-x86-64/, win32-x86-64/, android-aarch64/, etc.) and are extracted and loaded automatically at runtime.
+
+
+
+
+
+
+
+
+
+
