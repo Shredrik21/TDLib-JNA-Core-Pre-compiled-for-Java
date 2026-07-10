@@ -8,27 +8,34 @@ permissions:
 
 jobs:
   build-linux-arm:
-    runs-on: ubuntu-24.04-arm64
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
 
-      - name: Install build tools
+      - name: Install cross-compilation tools
         run: |
+          sudo dpkg --add-architecture arm64
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake gperf php-cli libssl-dev zlib1g-dev
+          sudo apt-get install -y build-essential cmake gperf php-cli libssl-dev:arm64 zlib1g-dev:arm64 g++-aarch64-linux-gnu
 
       - name: Clone TDLib source
         run: |
           git clone https://github.com/tdlib/td.git tdlib-src
 
-      - name: Configure CMake
+      - name: Configure CMake for ARM64
         run: |
           cd tdlib-src
           mkdir build
           cd build
-          cmake -DCMAKE_BUILD_TYPE=Release -DTD_ENABLE_JNI=OFF -DTD_ENABLE_DOTNET=OFF ..
+          cmake -DCMAKE_SYSTEM_NAME=Linux \
+                -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+                -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+                -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DTD_ENABLE_JNI=OFF \
+                -DTD_ENABLE_DOTNET=OFF ..
 
       - name: Compile core static libraries
         run: |
@@ -44,7 +51,7 @@ jobs:
       - name: Link shared library (libtdjson.so)
         run: |
           cd tdlib-src/build
-          g++ -shared -fPIC -Wl,--whole-archive \
+          aarch64-linux-gnu-g++ -shared -fPIC -Wl,--whole-archive \
             libtdjson_static.a \
             libtdclient.a \
             libtdcore.a \
@@ -53,6 +60,7 @@ jobs:
             libtdactor.a \
             libtdnet.a \
             libtddb.a \
+            libtdsqlite.a \
             -Wl,--no-whole-archive \
             -lssl -lcrypto -lz -lrt -ldl -lpthread \
             -o libtdjson.so
@@ -66,6 +74,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/main/resources/
+          git add tdlib-jna-linux-aarch64/
           git commit -m "chore: automated build of Linux ARM64 libtdjson.so" || echo "No changes to commit"
           git push
