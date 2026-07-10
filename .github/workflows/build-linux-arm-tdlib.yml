@@ -41,7 +41,7 @@ jobs:
           mkdir build_native
           cd build_native
           cmake -DCMAKE_BUILD_TYPE=Release ..
-          cmake --build . --target prepare_codegen
+          cmake --build . --target tdutils
 
       - name: Configure CMake for ARM64
         run: |
