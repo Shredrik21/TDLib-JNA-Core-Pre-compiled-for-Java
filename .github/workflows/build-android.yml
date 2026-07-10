@@ -1,0 +1,61 @@
+name: Build TDLib Android Library
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake gperf php-cli libssl-dev zlib1g-dev
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Clone TDLib source
+        run: |
+          git clone https://github.com/tdlib/td.git tdlib-src
+
+      - name: Fetch Android SDK and NDK
+        run: |
+          cd tdlib-src/example/android
+          chmod +x *.sh
+          ./fetch-sdk.sh
+
+      - name: Build OpenSSL for Android
+        run: |
+          cd tdlib-src/example/android
+          ./build-openssl.sh
+
+      - name: Build TDLib for Android
+        run: |
+          cd tdlib-src/example/android
+          ./build-tdlib.sh "" "" "" "" "JSON"
+
+      - name: Deploy binary to JNA resources
+        run: |
+          mkdir -p src/main/resources/android-aarch64/
+          mkdir -p src/main/resources/android-x86-64/
+          cp tdlib-src/example/android/tdlib/libs/arm64-v8a/libtdjson.so src/main/resources/android-aarch64/libtdjson.so
+          cp tdlib-src/example/android/tdlib/libs/x86_64/libtdjson.so src/main/resources/android-x86-64/libtdjson.so
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main/resources/
+          git commit -m "chore: automated build of Android libtdjson.so" || echo "No changes to commit"
+          git push
