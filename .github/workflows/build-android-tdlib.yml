@@ -47,10 +47,10 @@ jobs:
 
       - name: Deploy binary to JNA resources
         run: |
-          mkdir -p src/main/resources/android-aarch64/
-          mkdir -p src/main/resources/android-x86-64/
-          cp tdlib-src/example/android/tdlib/libs/arm64-v8a/libtdjson.so src/main/resources/android-aarch64/libtdjson.so
-          cp tdlib-src/example/android/tdlib/libs/x86_64/libtdjson.so src/main/resources/android-x86-64/libtdjson.so
+          mkdir -p tdlib-jna-android/src/main/resources/android-aarch64/
+          mkdir -p tdlib-jna-android/src/main/resources/android-x86-64/
+          cp tdlib-src/example/android/tdlib/libs/arm64-v8a/libtdjson.so tdlib-jna-android/src/main/resources/android-aarch64/libtdjson.so
+          cp tdlib-src/example/android/tdlib/libs/x86_64/libtdjson.so tdlib-jna-android/src/main/resources/android-x86-64/libtdjson.so
 
       - name: Commit and push changes
         run: |
