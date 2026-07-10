@@ -13,9 +13,16 @@ jobs:
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
-
+        
       - name: Install cross-compilation tools
         run: |
+          sudo sed -i 's/deb h/deb [arch=amd64] h/g' /etc/apt/sources.list
+          sudo sed -i 's/deb-src h/deb-src [arch=amd64] h/g' /etc/apt/sources.list
+          sudo tee /etc/apt/sources.list.d/arm64.list <<EOF
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy main restricted universe multiverse
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main restricted universe multiverse
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main restricted universe multiverse
+          EOF
           sudo dpkg --add-architecture arm64
           sudo apt-get update
           sudo apt-get install -y build-essential cmake gperf php-cli libssl-dev:arm64 zlib1g-dev:arm64 g++-aarch64-linux-gnu
