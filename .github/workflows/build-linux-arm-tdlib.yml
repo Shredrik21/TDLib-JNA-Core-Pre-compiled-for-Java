@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
-        
+
       - name: Install cross-compilation tools
         run: |
           sudo tee /etc/apt/sources.list <<EOF
@@ -34,6 +34,14 @@ jobs:
       - name: Clone TDLib source
         run: |
           git clone https://github.com/tdlib/td.git tdlib-src
+
+      - name: Pre-generate TDLib source files on host
+        run: |
+          cd tdlib-src
+          mkdir build_native
+          cd build_native
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          cmake --build . --target prepare_codegen
 
       - name: Configure CMake for ARM64
         run: |
@@ -87,4 +95,5 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add tdlib-jna-linux-aarch64/
           git commit -m "chore: automated build of Linux ARM64 libtdjson.so" || echo "No changes to commit"
+          git pull --rebase origin master
           git push
