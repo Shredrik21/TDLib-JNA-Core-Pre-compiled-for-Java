@@ -57,10 +57,10 @@ jobs:
             -lssl -lcrypto -lz -lrt -ldl -lpthread \
             -o libtdjson.so
 
-      - name: Deploy binary to resources
+      - name: Deploy binary to JNA resources
         run: |
-          mkdir -p src/main/resources/linux-x86-64/
-          cp tdlib-src/build/libtdjson.so src/main/resources/linux-x86-64/libtdjson.so
+          mkdir -p tdlib-jna-linux-x86-64/src/main/resources/linux-x86-64/
+          cp tdlib-src/build/libtdjson.so tdlib-jna-linux-x86-64/src/main/resources/linux-x86-64/libtdjson.so
 
       - name: Commit and push changes
         run: |
