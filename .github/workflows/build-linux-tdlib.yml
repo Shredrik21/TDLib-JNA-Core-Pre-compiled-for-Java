@@ -1,4 +1,4 @@
-name: Build TDLib Native Library
+name: Build TDLib Linux X86-64 Library
 
 on:
   workflow_dispatch:
