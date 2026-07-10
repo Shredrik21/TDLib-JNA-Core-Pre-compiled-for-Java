@@ -29,31 +29,10 @@ jobs:
           cd build
           cmake -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR=$(brew --prefix openssl) -DTD_ENABLE_JNI=OFF -DTD_ENABLE_DOTNET=OFF ..
 
-      - name: Compile core static libraries
+      - name: Compile shared library (libtdjson.dylib)
         run: |
           cd tdlib-src/build
-          cmake --build . --target tdjson_static --parallel $(sysctl -n hw.ncpu)
-          cmake --build . --target tdclient --parallel $(sysctl -n hw.ncpu)
-
-      - name: Gather static libraries
-        run: |
-          cd tdlib-src/build
-          find . -name "libtd*.a" -exec cp {} . \;
-
-      - name: Link shared library (libtdjson.dylib)
-        run: |
-          cd tdlib-src/build
-          clang++ -shared -fPIC \
-            -Wl,-force_load,libtdjson_static.a \
-            -Wl,-force_load,libtdclient.a \
-            -Wl,-force_load,libtdcore.a \
-            -Wl,-force_load,libtdapi.a \
-            -Wl,-force_load,libtdutils.a \
-            -Wl,-force_load,libtdactor.a \
-            -Wl,-force_load,libtdnet.a \
-            -Wl,-force_load,libtddb.a \
-            -L$(brew --prefix openssl)/lib -lssl -lcrypto -lz -lpthread \
-            -o libtdjson.dylib
+          cmake --build . --target tdjson --config Release --parallel $(sysctl -n hw.ncpu)
 
       - name: Deploy binary to JNA resources
         run: |
