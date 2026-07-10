@@ -1,0 +1,69 @@
+name: Build TDLib macOS Library
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          brew install gperf cmake openssl
+
+      - name: Clone TDLib source
+        run: |
+          git clone https://github.com/tdlib/td.git tdlib-src
+
+      - name: Configure CMake
+        run: |
+          cd tdlib-src
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR=$(brew --prefix openssl) -DTD_ENABLE_JNI=OFF -DTD_ENABLE_DOTNET=OFF ..
+
+      - name: Compile core static libraries
+        run: |
+          cd tdlib-src/build
+          cmake --build . --target tdjson_static --parallel $(sysctl -n hw.ncpu)
+          cmake --build . --target tdclient --parallel $(sysctl -n hw.ncpu)
+
+      - name: Gather static libraries
+        run: |
+          cd tdlib-src/build
+          find . -name "libtd*.a" -exec cp {} . \;
+
+      - name: Link shared library (libtdjson.dylib)
+        run: |
+          cd tdlib-src/build
+          clang++ -shared -fPIC \
+            -Wl,-force_load,libtdjson_static.a \
+            -Wl,-force_load,libtdclient.a \
+            -Wl,-force_load,libtdcore.a \
+            -Wl,-force_load,libtdapi.a \
+            -Wl,-force_load,libtdutils.a \
+            -Wl,-force_load,libtdactor.a \
+            -Wl,-force_load,libtdnet.a \
+            -Wl,-force_load,libtddb.a \
+            -L$(brew --prefix openssl)/lib -lssl -lcrypto -lz -lpthread \
+            -o libtdjson.dylib
+
+      - name: Deploy binary to JNA resources
+        run: |
+          mkdir -p tdlib-jna-darwin-aarch64/src/main/resources/darwin-aarch64/
+          cp tdlib-src/build/libtdjson.dylib tdlib-jna-darwin-aarch64/src/main/resources/darwin-aarch64/libtdjson.dylib
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tdlib-jna-darwin-aarch64/
+          git commit -m "chore: automated build of macOS Apple Silicon libtdjson.dylib" || echo "No changes to commit"
+          git push
