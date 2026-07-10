@@ -4,32 +4,17 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.shredrik</groupId>
-    <artifactId>tdlib-jna-core</artifactId>
-    <version>1.0.0</version>
-    <packaging>jar</packaging>
+    <groupId>com.github.Shredrik21</groupId>
+    <artifactId>tdlib-jna-parent</artifactId>
+    <version>1.0.2</version>
+    <packaging>pom</packaging>
 
-    <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
-    <dependencies>
-        <dependency>
-            <groupId>net.java.dev.jna</groupId>
-            <artifactId>jna</artifactId>
-            <version>5.14.0</version>
-        </dependency>
-    </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
-            </plugin>
-        </plugins>
-    </build>
+  <modules>
+        <module>tdlib-jna-core</module>
+        <module>tdlib-jna-linux-x86-64</module>
+        <module>tdlib-jna-linux-aarch64</module>
+        <module>tdlib-jna-win32-x86-64</module>
+        <module>tdlib-jna-android</module>
+        <module>tdlib-jna-darwin-aarch64</module>
+    </modules>
 </project>
