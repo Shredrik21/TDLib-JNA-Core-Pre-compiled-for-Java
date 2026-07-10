@@ -43,8 +43,8 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Release ..
           cmake --build . --target tdutils
           cmake --build . --target tl_generate_common
-          cmake --build . --target td_generate_mtproto_api
-          cmake --build . --target td_generate_secret_api
+          cmake --build . --target tl_generate_mtproto
+          cmake --build . --target tl_generate_secret
 
       - name: Configure CMake for ARM64
         run: |
