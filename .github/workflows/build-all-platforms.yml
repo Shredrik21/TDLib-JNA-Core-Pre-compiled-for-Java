@@ -1,0 +1,296 @@
+name: Build All Platforms (Master Release)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux-x64:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake gperf php-cli libssl-dev zlib1g-dev
+      - name: Clone TDLib source
+        run: |
+          git clone https://github.com/tdlib/td.git tdlib-src
+      - name: Configure CMake
+        run: |
+          cd tdlib-src
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DTD_ENABLE_JNI=OFF -DTD_ENABLE_DOTNET=OFF ..
+      - name: Compile core static libraries
+        run: |
+          cd tdlib-src/build
+          cmake --build . --target tdjson_static --parallel $(nproc)
+          cmake --build . --target tdclient --parallel $(nproc)
+      - name: Gather static libraries
+        run: |
+          cd tdlib-src/build
+          find . -name "libtd*.a" -exec cp {} . \;
+      - name: Link shared library
+        run: |
+          cd tdlib-src/build
+          g++ -shared -fPIC -Wl,--whole-archive \
+            libtdjson_static.a \
+            libtdclient.a \
+            libtdcore.a \
+            libtdapi.a \
+            libtdutils.a \
+            libtdactor.a \
+            libtdnet.a \
+            libtddb.a \
+            libtdsqlite.a \
+            -Wl,--no-whole-archive \
+            -lssl -lcrypto -lz -lrt -ldl -lpthread \
+            -o libtdjson.so
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64-bin
+          path: tdlib-src/build/libtdjson.so
+
+  build-linux-arm64:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+      - name: Install cross-compilation tools
+        run: |
+          sudo tee /etc/apt/sources.list <<EOF
+          deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu/ jammy main restricted universe multiverse
+          deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu/ jammy-updates main restricted universe multiverse
+          deb [arch=amd64] http://azure.archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse
+          deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security main restricted universe multiverse
+          EOF
+          sudo tee /etc/apt/sources.list.d/arm64.list <<EOF
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy main restricted universe multiverse
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main restricted universe multiverse
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main restricted universe multiverse
+          EOF
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake gperf php-cli libssl-dev:arm64 zlib1g-dev:arm64 g++-aarch64-linux-gnu
+      - name: Clone TDLib source
+        run: |
+          git clone https://github.com/tdlib/td.git tdlib-src
+      - name: Pre-generate TDLib source files on host
+        run: |
+          cd tdlib-src
+          mkdir build_native
+          cd build_native
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          cmake --build . --target tdutils
+          cmake --build . --target tl_generate_common
+          cmake --build . --target tl_generate_mtproto
+          cmake --build . --target tl_generate_json
+      - name: Configure CMake for ARM64
+        run: |
+          cd tdlib-src
+          mkdir build
+          cd build
+          cmake -DCMAKE_SYSTEM_NAME=Linux \
+                -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+                -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+                -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DTD_ENABLE_JNI=OFF \
+                -DTD_ENABLE_DOTNET=OFF ..
+      - name: Compile core static libraries
+        run: |
+          cd tdlib-src/build
+          cmake --build . --target tdjson_static --parallel $(nproc)
+          cmake --build . --target tdclient --parallel $(nproc)
+      - name: Gather static libraries
+        run: |
+          cd tdlib-src/build
+          find . -name "libtd*.a" -exec cp {} . \;
+      - name: Link shared library
+        run: |
+          cd tdlib-src/build
+          aarch64-linux-gnu-g++ -shared -fPIC -Wl,--whole-archive \
+            libtdjson_static.a \
+            libtdclient.a \
+            libtdcore.a \
+            libtdapi.a \
+            libtdutils.a \
+            libtdactor.a \
+            libtdnet.a \
+            libtddb.a \
+            libtdsqlite.a \
+            -Wl,--no-whole-archive \
+            -lssl -lcrypto -lz -lrt -ldl -lpthread \
+            -o libtdjson.so
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm64-bin
+          path: tdlib-src/build/libtdjson.so
+
+  build-windows:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+      - name: Install gperf
+        run: |
+          choco install gperf
+      - name: Set up vcpkg
+        run: |
+          vcpkg install openssl:x64-windows-static zlib:x64-windows-static
+      - name: Clone TDLib source
+        run: |
+          git clone https://github.com/tdlib/td.git tdlib-src
+      - name: Configure CMake
+        run: |
+          cd tdlib-src
+          mkdir build
+          cd build
+          cmake -A x64 -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows-static -DCMAKE_BUILD_TYPE=Release -DTD_ENABLE_JNI=OFF -DTD_ENABLE_DOTNET=OFF ..
+      - name: Build TDLib
+        run: |
+          cd tdlib-src/build
+          cmake --build . --target tdjson --config Release --parallel
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-bin
+          path: tdlib-src/build/Release/tdjson.dll
+
+  build-android:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake gperf php-cli libssl-dev zlib1g-dev
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - name: Clone TDLib source
+        run: |
+          git clone https://github.com/tdlib/td.git tdlib-src
+      - name: Fetch Android SDK and NDK
+        run: |
+          cd tdlib-src/example/android
+          chmod +x *.sh
+          ./fetch-sdk.sh
+      - name: Build OpenSSL for Android
+        run: |
+          cd tdlib-src/example/android
+          ./build-openssl.sh
+      - name: Build TDLib for Android
+        run: |
+          cd tdlib-src/example/android
+          ./build-tdlib.sh "" "" "" "" "JSON"
+      - name: Upload Artifact ARM64
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-arm64-bin
+          path: tdlib-src/example/android/tdlib/libs/arm64-v8a/libtdjson.so
+      - name: Upload Artifact x86_64
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-x86_64-bin
+          path: tdlib-src/example/android/tdlib/libs/x86_64/libtdjson.so
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+      - name: Install build tools
+        run: |
+          brew install gperf cmake openssl
+      - name: Clone TDLib source
+        run: |
+          git clone https://github.com/tdlib/td.git tdlib-src
+      - name: Configure CMake
+        run: |
+          cd tdlib-src
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR=$(brew --prefix openssl) -DTD_ENABLE_JNI=OFF -DTD_ENABLE_DOTNET=OFF ..
+      - name: Compile shared library (libtdjson.dylib)
+        run: |
+          cd tdlib-src/build
+          cmake --build . --target tdjson --config Release --parallel $(sysctl -n hw.ncpu)
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-bin
+          path: tdlib-src/build/libtdjson.dylib
+
+  release:
+    needs: [build-linux-x64, build-linux-arm64, build-windows, build-android, build-macos]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Download Linux x64
+          uses: actions/download-artifact@v4
+        with:
+          name: linux-x64-bin
+          path: tdlib-jna-linux-x86-64/src/main/resources/linux-x86-64/
+
+      - name: Download Linux ARM64
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-arm64-bin
+          path: tdlib-jna-linux-aarch64/src/main/resources/linux-aarch64/
+
+      - name: Download Windows
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-bin
+          path: tdlib-jna-win32-x86-64/src/main/resources/win32-x86-64/
+
+      - name: Download Android ARM64
+        uses: actions/download-artifact@v4
+        with:
+          name: android-arm64-bin
+          path: tdlib-jna-android/src/main/resources/android-aarch64/
+
+      - name: Download Android x86_64
+        uses: actions/download-artifact@v4
+        with:
+          name: android-x86_64-bin
+          path: tdlib-jna-android/src/main/resources/android-x86-64/
+
+      - name: Download macOS
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-bin
+          path: tdlib-jna-darwin-aarch64/src/main/resources/darwin-aarch64/
+
+      - name: Rename artifacts
+        run: |
+          mv tdlib-jna-linux-x86-64/src/main/resources/linux-x86-64/libtdjson.so* tdlib-jna-linux-x86-64/src/main/resources/linux-x86-64/libtdjson.so || echo "Already correct name"
+          mv tdlib-jna-linux-aarch64/src/main/resources/linux-aarch64/libtdjson.so* tdlib-jna-linux-aarch64/src/main/resources/linux-aarch64/libtdjson.so || echo "Already correct name"
+          mv tdlib-jna-win32-x86-64/src/main/resources/win32-x86-64/tdjson.dll* tdlib-jna-win32-x86-64/src/main/resources/win32-x86-64/tdjson.dll || echo "Already correct name"
+          mv tdlib-jna-android/src/main/resources/android-aarch64/libtdjson.so* tdlib-jna-android/src/main/resources/android-aarch64/libtdjson.so || echo "Already correct name"
+          mv tdlib-jna-android/src/main/resources/android-x86-64/libtdjson.so* tdlib-jna-android/src/main/resources/android-x86-64/libtdjson.so || echo "Already correct name"
+          mv tdlib-jna-darwin-aarch64/src/main/resources/darwin-aarch64/libtdjson.dylib* tdlib-jna-darwin-aarch64/src/main/resources/darwin-aarch64/libtdjson.dylib || echo "Already correct name"
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tdlib-jna-*
+          git commit -m "chore: automated universal multi-platform build of libtdjson" || echo "No changes to commit"
+          git pull --rebase origin master
+          git push
