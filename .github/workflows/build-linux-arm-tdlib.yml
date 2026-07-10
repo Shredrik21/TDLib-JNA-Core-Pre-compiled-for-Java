@@ -59,8 +59,8 @@ jobs:
 
       - name: Deploy binary to JNA resources
         run: |
-          mkdir -p src/main/resources/linux-aarch64/
-          cp tdlib-src/build/libtdjson.so src/main/resources/linux-aarch64/libtdjson.so
+          mkdir -p tdlib-jna-linux-aarch64/src/main/resources/linux-aarch64/
+          cp tdlib-src/build/libtdjson.so tdlib-jna-linux-aarch64/src/main/resources/linux-aarch64/libtdjson.so
 
       - name: Commit and push changes
         run: |
