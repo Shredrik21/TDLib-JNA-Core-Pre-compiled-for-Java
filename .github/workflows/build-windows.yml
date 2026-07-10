@@ -1,0 +1,56 @@
+name: Build TDLib Windows Library
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Install gperf
+        run: |
+          choco install gperf
+
+      - name: Set up vcpkg
+        run: |
+          vcpkg install openssl:x64-windows-static zlib:x64-windows-static
+
+      - name: Clone TDLib source
+        run: |
+          git clone https://github.com/tdlib/td.git tdlib-src
+
+      - name: Configure CMake
+        run: |
+          cd tdlib-src
+          mkdir build
+          cd build
+          cmake -A x64 -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows-static -DCMAKE_BUILD_TYPE=Release -DTD_ENABLE_JNI=OFF -DTD_ENABLE_DOTNET=OFF ..
+
+      - name: Build TDLib
+        run: |
+          cd tdlib-src/build
+          cmake --build . --target tdjson --config Release --parallel
+
+      - name: Deploy binary to JNA resources
+        run: |
+          mkdir -p src/main/resources/win32-x86-64/
+          cp tdlib-src/build/Release/tdjson.dll src/main/resources/win32-x86-64/tdjson.dll
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main/resources/
+          git commit -m "chore: automated build of Windows tdjson.dll" || echo "No changes to commit"
+          git push
