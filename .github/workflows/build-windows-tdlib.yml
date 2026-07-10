@@ -44,8 +44,8 @@ jobs:
 
       - name: Deploy binary to JNA resources
         run: |
-          mkdir -p src/main/resources/win32-x86-64/
-          cp tdlib-src/build/Release/tdjson.dll src/main/resources/win32-x86-64/tdjson.dll
+          mkdir -p tdlib-jna-win32-x86-64/src/main/resources/win32-x86-64/
+          cp tdlib-src/build/Release/tdjson.dll tdlib-jna-win32-x86-64/src/main/resources/win32-x86-64/tdjson.dll
 
       - name: Commit and push changes
         run: |
